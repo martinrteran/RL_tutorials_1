@@ -5,6 +5,10 @@ from typing import Optional, Union, Any
 import numpy as np
 
 class Object(ABC): # AKA: Obstacle
+    """
+    This object stores the information from objects, 
+    like position, width, length and color.
+    """
     _pos: np.ndarray
     _wl: np.ndarray
     _color: Color
@@ -17,6 +21,17 @@ class Object(ABC): # AKA: Obstacle
         return super().__new__(cls)
 
     def __init__(self, pos: np.ndarray, wl: np.ndarray, color: Color):
+        """
+    Init/Constructor for the object class, only usable for child classes
+    
+    :param self: the Object itself
+    :param pos: Current position of the object
+    :type pos: np.ndarray
+    :param wl: Width and length/height of the object
+    :type wl: np.ndarray
+    :param color: color of the object, pygame
+    :type color: Color
+    """
         assert pos.shape == (2,), f"The position must be a 2D vector"
         assert wl.shape == (2,), f"The width and length must be a 2D vector"
         self._pos = pos

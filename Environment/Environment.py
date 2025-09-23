@@ -26,7 +26,26 @@ class BaseEnvironment(gym.Env):
     def __init__(self, wl: np.ndarray, robot_dims: np.ndarray , obstacles: Union[List,Set,None] = None, 
     grid_resolution: Union[np.integer,int]= 1000, num_rays: Union[np.integer,int] = 360 ,
     max_range: Union[np.floating,float] = 5.0, render_mode: Optional[str] = "pygame"):
-        """ Create the Base Environment with all the necessary things"""
+        """
+        Create the Base Environment with all the necessary things
+        
+        :param self: Description
+        :param wl: Description
+        :type wl: np.ndarray
+        :param robot_dims: Description
+        :type robot_dims: np.ndarray
+        :param obstacles: Description
+        :type obstacles: Union[List, Set, None]
+        :param grid_resolution: Description
+        :type grid_resolution: Union[np.integer, int]
+        :param num_rays: Description
+        :type num_rays: Union[np.integer, int]
+        :param max_range: Description
+        :type max_range: Union[np.floating, float]
+        :param render_mode: Description
+        :type render_mode: Optional[str]
+        
+        """
         assert not render_mode or render_mode in self.metadata["render_modes"], f"The render mode must be None, empty or in the list {self.metadata['render_modes']}"
         assert grid_resolution > 0, f"The resolution of the grid, number of divisions in a meter, must be more than 0"
         assert wl.shape == (2,) and wl[0] > 0 and wl[1] >0, f"The width and height must be greater than 0 and it must come in a (2,) shaped numpy ndarray"
@@ -51,9 +70,43 @@ class BaseEnvironment(gym.Env):
         self._fps = self.metadata['render_fps']
 
     def step(self, action: int) -> Tuple[Any, SupportsFloat, bool, bool, Dict[str, Any]]:
+        """
+        Docstring for step
+        
+        :param self: Description
+        :param action: Description
+        :type action: int
+        :return: Description
+        :rtype: Tuple[Any, SupportsFloat, bool, bool, Dict[str, Any]]
+        """
         assert action in self._action_to_direction, f"The action {action} is not supported, keep it in {self._action_to_direction.keys()}"
         direction = self._action_to_direction[action]
+        self._robot.move(direction)
+        done = False
+        truncated = False
+        info = {}
+        if not self._collision():
+            self._robot.go_back()
+        else:
+            self._lidar.move(direction)
+        
         return super().step(action)
+    
+    def _reached_goal(self):
+        """
+        Docstring for _reached_goal
+        
+        :param self: Description
+        """
+
+    def _collision(self):
+        """
+        Docstring for _collision
+        
+        :param self: Description
+        """
+        pass
+
     def _get_observation(self):
         """ 
         Here is where the scanning is made after moving the robot
@@ -61,10 +114,33 @@ class BaseEnvironment(gym.Env):
         """
         pass
     def reset(self, *, seed: int | None = None, options: Dict[str, Any] | None = None) -> Tuple[Any, Dict[str, Any]]:
+        """
+        Docstring for reset
+        
+        :param self: Description
+        :param seed: Description
+        :type seed: int | None
+        :param options: Description
+        :type options: Dict[str, Any] | None
+        :return: Description
+        :rtype: Tuple[Any, Dict[str, Any]]
+        """
         return super().reset(seed=seed, options=options)
     def render(self) -> RenderFrame | list[RenderFrame] | None:
+        """
+        Docstring for render
+        
+        :param self: Description
+        :return: Description
+        :rtype: RenderFrame | list[RenderFrame] | None
+        """
         return super().render()
     def close(self):
+        """
+        Docstring for close
+        
+        :param self: Description
+        """
         return super().close()
 
 register(id="emptyEnv",

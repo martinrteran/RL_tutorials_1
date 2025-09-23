@@ -56,6 +56,15 @@ class Map:
         #     if self._grid[y, x] > 0:
         #         rect = pygame.Rect(x * cell_size, y * cell_size, cell_size, cell_size)
         #         pygame.draw.rect(surface, (0, 0, 0), rect)  # black for obstacles
+    
+    def is_free(self, xy: np.ndarray):
+        assert xy.shape == (2,), f"The point must be a 2D array"
+        return self.in_bounds(xy) and self._grid[xy*self._grid_resolution] == 0
+
+    def in_bounds(self, xy: np.ndarray):
+        assert xy.shape == (2,), f"The point must be a 2D array"
+        return np.array([0,0]) <= xy < self._wl
+
 
 
 if __name__ == '__main__':
