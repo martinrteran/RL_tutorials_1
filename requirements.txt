@@ -1,0 +1,10 @@
+pygame
+torch
+numpy
+torchvision
+torchaudio
+torchrl
+matplotlib
+gymnasium
+ipykernel
+stable-baselines3
