@@ -49,13 +49,14 @@ class CircleObstacle(StaticObject):
         center = self._center * resolution
         radius = (self._radius * resolution)
         pygame.draw.circle(surface, self._color,center,radius[0])
+    
     def get_grid(self, resolution: int | np.integer) -> np.ndarray:
         r = int(self._radius[0].item() * resolution)
         wl = self._wl.astype(int) * resolution
 
         # Create a grid of coordinates
         y_indices, x_indices = np.ogrid[:wl[1], :wl[0]]  # shape: (height, width)
-        dist_sq = (x_indices - r)**2 + (y_indices - r)**2
+        dist_sq = (x_indices - r)**2 + (y_indices - r)**2 # type: ignore
 
         # Create binary mask where distance <= radius
         grid = (dist_sq <= r**2).astype(np.uint8)
@@ -65,7 +66,6 @@ class CircleObstacle(StaticObject):
         return self._radius
     def get_center(self):
         return self._center
-    
     def __init__(self, center: np.ndarray, radius: np.ndarray, color: Color):
         assert radius.shape == (1,), f"For the circle, there must be only radius"
         assert radius > 0, f"The radius must be positive and greater than 0"
