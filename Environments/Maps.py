@@ -2,7 +2,7 @@ from typing import Set, Optional, Any, List, Union
 import numpy as np
 from pygame.color import Color
 import pygame
-from Objects import StaticObject
+from .Objects import StaticObject
 
 
 class Map:

@@ -1,11 +1,11 @@
 import numpy as np
-from Objects import MobileObjects
+from .Objects import MobileObjects
 from typing import  List, Union
 import pygame
 from pygame.color import Color
 from pygame.surface import Surface
-from StaticObjects import EllipseObstacle
-from Maps import Map
+from .StaticObjects import EllipseObstacle
+from .Maps import Map
 
 class RobotStepper(MobileObjects):
     """

@@ -2,7 +2,7 @@ import numpy as np
 import pygame
 from pygame.color import Color
 from pygame.surface import Surface
-from Objects import StaticObject
+from .Objects import StaticObject
 
 class Wall(StaticObject):
 

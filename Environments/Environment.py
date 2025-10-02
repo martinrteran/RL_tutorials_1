@@ -1,15 +1,14 @@
 from itertools import product
 from gymnasium.core import RenderFrame
-from gymnasium.envs.registration import register
-import pygame.locals
+
 from pygame.time import Clock
-from Maps import Map
+from .Maps import Map
 from typing import Any, Optional, Set, SupportsFloat, Tuple, Dict, Union
-from StaticObjects import *
-from MobileObjects import *
+from .StaticObjects import *
+from .MobileObjects import *
 import gymnasium as gym
 from enum import Enum
-
+from tqdm import tqdm
 
 class BaseActions(Enum):
     right=0
@@ -53,7 +52,7 @@ class BaseEnvironment(gym.Env):
         assert grid_resolution > 0, f"The resolution of the grid, number of divisions in a meter, must be more than 0"
         assert wl.shape == (2,) and wl[0] > 0 and wl[1] >0, f"The width and height must be greater than 0 and it must come in a (2,) shaped numpy ndarray"
         if render_mode == 'pygame':  assert window_size is not None and window_size.shape == (2,), f"The window size 2D array must exist if a render mode is specified as pygame";  self.render_mode = render_mode ; pygame.init(); self._window_resolution = window_size/wl
-                
+        super().__init__()
         if window_size is None: self._window_resolution = None
         self._window = None
         self._window_size = window_size
@@ -67,7 +66,7 @@ class BaseEnvironment(gym.Env):
 
         limits = np.linalg.norm(wl)
         self.action_space = gym.spaces.Discrete(4)
-        self.observation_space = gym.spaces.Box(np.array([0.0,-np.pi,-1.0,-np.pi],np.float32),np.array([limits,np.pi,limits,np.pi], np.float32),(4,))
+        self.observation_space = gym.spaces.Box(np.array([0,-np.pi,-1,0],np.float32),np.array([limits,np.pi,limits,2*np.pi], np.float32),(4,))
 
         self._action_to_direction = {
             BaseActions.right.value: np.array([1, 0]),
@@ -78,6 +77,7 @@ class BaseEnvironment(gym.Env):
         
         self._fps = self.metadata['render_fps']
         self._clock = Clock()
+        # self._step_count = 0 
 
     def step(self, action: int) -> Tuple[Any, SupportsFloat, bool, bool, Dict[str, Any]]:# TODO reward function
         """
@@ -89,7 +89,7 @@ class BaseEnvironment(gym.Env):
         :return: Description
         :rtype: Tuple[Any, SupportsFloat, bool, bool, Dict[str, Any]]
         """
-        assert action in self._action_to_direction, f"The action {action} is not supported, keep it in {self._action_to_direction.keys()}"
+        assert int(action) in self._action_to_direction, f"The action {action} is not supported, keep it in {self._action_to_direction.keys()}"
         direction = self._action_to_direction[action]
         self._robot.move(direction)
         done = False
@@ -98,6 +98,7 @@ class BaseEnvironment(gym.Env):
         if self._collision(self._robot.get_pos(),self._robot.get_wl()):
             self._robot.go_back()
             done = True
+            reward = -10
         else:
             self._lidar.move(direction)
             self._current_pos = self._robot.get_pos()
@@ -107,10 +108,17 @@ class BaseEnvironment(gym.Env):
 
         if self._reached_goal():
             done = True
+            reward = 10
             gym.logger.warn("GOAL REACHED")
+        elif not done:
+            reward = 1/(obs[0] - obs[2]/4 + 1e-1) 
 
-        reward = 0
-        return obs, reward, done, truncated, info
+        # self._step_count += 1
+        # if hasattr(self, "spec") and self.spec is not None and self.spec.max_episode_steps is not None:
+        #     if self._step_count >= self.spec.max_episode_steps:
+        #         truncated = True
+        #print(f"Step {self._step_count}: Action={action}, Reward={reward}, Obs={obs}", end="\r") # type: ignore
+        return obs, reward, done, truncated, info # pyright: ignore[reportPossiblyUnboundVariable]
    
 
     def reset(self, *, seed: int | None = None, options: Dict[str, Any] | None = None) -> Tuple[Any, Dict[str, Any]]:
@@ -141,6 +149,7 @@ class BaseEnvironment(gym.Env):
         
         self._current_pos = start_pos
         self._goal_pos = goal_pos
+        # self._step_count = 0
         self._robot.reset(start_pos)
         self._lidar.reset(start_pos)
         
@@ -170,6 +179,8 @@ class BaseEnvironment(gym.Env):
             # # Convert pygame surface to NumPy array
             # frame = pygame.surfarray.array3d(self._window)
             # frame = np.transpose(frame, (1, 0, 2))  # Transpose to (height, width, channels)
+        elif self.render_mode == 'human':
+            print("PRINTING")
         return None
 
     def close(self): # TODO
@@ -180,6 +191,7 @@ class BaseEnvironment(gym.Env):
         """
         if self.render_mode == 'pygame':
             pygame.quit()
+        super().close()
         return None
      
     def _reached_goal(self):
@@ -216,7 +228,7 @@ class BaseEnvironment(gym.Env):
         goal_pos = self._goal_pos
         lidar_hit = self._lidar.get_min_hit()
         dno = lidar_hit[0:2] - lidar_pos if lidar_hit is not None else np.empty((2,))
-        top5 = self._lidar.get_top_hit(5)
+        #top5 = self._lidar.get_top_hit(5)
             
         return {
             "distance_to_goal": (goal_pos - lidar_pos).astype(np.float32),
@@ -242,8 +254,14 @@ class BaseEnvironment(gym.Env):
         vec_goal = self._goal_pos - self._current_pos
         distance_to_goal = np.linalg.norm(vec_goal)
         angle_to_goal = np.atan2(vec_goal[0],vec_goal[1])
-
-        return np.array([distance_to_goal, angle_to_goal, distance_to_nearest_obstacle, angle_to_nearest_obstacle],np.float32)
+        obs = np.array([distance_to_goal, angle_to_goal, distance_to_nearest_obstacle, angle_to_nearest_obstacle], dtype=np.float32)
+        # print("Observation from reset():", obs)
+        # print("Observation from reset() shape:", obs.shape)
+        # print("Observation space low:", self.observation_space.low)
+        # print("Observation space high:", self.observation_space.high)
+        # print("Observation space shape:", self.observation_space.shape)
+        # print("Is obs within space?", self.observation_space.contains(obs))
+        return obs
 
     def _render_pygame(self):
         if self._window is not None and self._window_resolution is not None:
@@ -267,54 +285,26 @@ class BaseEnvironment(gym.Env):
             #     if keys[pygame.K_ESCAPE]:
 
 
-if "emptyEnv" not in gym.registry:
-    register(id="emptyEnv",
-            entry_point="Environment:BaseEnvironment",
-            reward_threshold=100,
-            max_episode_steps=500,
-            kwargs={
-                "wl":np.array([100,100]),
-                "robot_dims": np.array([5,5]),
-                "obstacles": None,
-                "grid_resolution":100,
-                "num_rays":360,
-                "max_range":10.0
-                }
-            )
 
-if "wallsEnv" not in gym.registry:
-    register(
-        id = "wallsEnv",
-        entry_point="Environment:BaseEnvironment",
-        reward_threshold=100,
-        max_episode_steps=500,
-        kwargs={
-            "wl":np.array([100,100]),
-            "robot_dims": np.array([5,5]),
-            "obstacles": [Wall(np.zeros((2,)),np.array([100,5]),Color(0,0,0)),Wall(np.zeros((2,)),np.array([5,100]),Color(0,0,0)),
-                            Wall(np.array([95,0]),np.array([5,100]),Color(0,0,0)),Wall(np.array([0,95]),np.array([100,5]),Color(0,0,0))],
-            "grid_resolution":100,
-            "num_rays":360,
-            "max_range":10.0
-        }
-    )
 
 if __name__ == '__main__':
     from datetime import datetime, timezone
+    import set_up_envs
     WinW, WinH = 800,800
     env = gym.make("wallsEnv",None,None,render_mode='pygame',window_size=np.array([WinW,WinH]))
     obs, info = env.reset(seed = datetime.now(timezone.utc).microsecond)
     running = 10_000
     done = False
-    while running > 0 and not done:
+    for i in tqdm(range(10_000)):
+    #while running > 0 and not done:
         try:
-            if info['distance_to_goal'][0] < -5 :
+            if info['distance_to_goal'][0] < -2 :
                 act = BaseActions.left.value
-            elif info['distance_to_goal'][0] > 5:
+            elif info['distance_to_goal'][0] > 2:
                 act = BaseActions.right.value
-            elif info['distance_to_goal'][1] < -5:
+            elif info['distance_to_goal'][1] < -2:
                 act = BaseActions.down.value
-            elif info['distance_to_goal'][1] > 5:
+            elif info['distance_to_goal'][1] > 2:
                 act = BaseActions.up.value
             else:
                 print("What do i do?")
@@ -338,12 +328,12 @@ if __name__ == '__main__':
             #             running = False
             obs, _, done, _, info =env.step(act)
             env.render()
-            running -=1
-            print(f"Running {running}/10_000",end="\r")
+            if done:
+                break
+            # print(f"Running {i}/10_000",end="\r")
         except:
             print(f"ERROR")
     
 
     env.close()
     print("END")
-    
